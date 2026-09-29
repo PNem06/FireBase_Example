@@ -2,54 +2,93 @@ package vn.edu.ueh.thanhdnh.firebase_example;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 
-import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
-  FirebaseFirestore db;
-  Button btAdd, btShow;
-  EditText etName, etPhone;
+import java.util.ArrayList;
+import java.util.List;
 
-  @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-    EdgeToEdge.enable(this);
-    setContentView(R.layout.activity_main);
-    ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-      Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-      v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-      return insets;
-    });
+public class MainActivity extends AppCompatActivity {
 
-    FirebaseApp.initializeApp(this);
-    db = FirebaseFirestore.getInstance();
-    btAdd = findViewById(R.id.btAdd);
-    btShow = findViewById(R.id.btShow);
-    etName = findViewById(R.id.etName);
-    etPhone = findViewById(R.id.etPhone);
-    btAdd.setOnClickListener(this);
-    btShow.setOnClickListener(this);
-  }
+    RecyclerView recyclerView;
+    ArticleAdapter adapter;
+    List<Article> articles = new ArrayList<>();
 
-  @Override
-  public void onClick(View view) {
-    if (view.getId() == R.id.btAdd) {
-      db.collection("users").add(new User(etName.getText().toString(), etPhone.getText().toString()));
-      etName.setText("");
-      etPhone.setText("");
-    } else if (view.getId() == R.id.btShow) {
-      Intent intent = new Intent(getBaseContext(), ShowDataActivity.class);
-      startActivity(intent);
+    FirebaseFirestore db;
+
+    Button btnAddArticle;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        setContentView(R.layout.activity_main);
+
+        FirebaseApp.initializeApp(this);
+
+        db = FirebaseFirestore.getInstance();
+
+        recyclerView = findViewById(R.id.recyclerView);
+        btnAddArticle = findViewById(R.id.btn_add_article);
+
+        recyclerView.setLayoutManager(
+                new LinearLayoutManager(this)
+        );
+
+        // SỬA Ở ĐÂY:
+        // getBaseContext() -> this
+        adapter = new ArticleAdapter(
+                this,
+                articles
+        );
+
+        recyclerView.setAdapter(adapter);
+
+        loadArticles();
+
+        btnAddArticle.setOnClickListener(v -> {
+
+            Intent intent = new Intent(
+                    MainActivity.this,
+                    AddArticleActivity.class
+            );
+
+            startActivity(intent);
+        });
     }
-  }
+
+    private void loadArticles() {
+
+        db.collection("articles")
+                .addSnapshotListener((value, error) -> {
+
+                    if (error != null || value == null) {
+                        return;
+                    }
+
+                    articles.clear();
+
+                    for (QueryDocumentSnapshot document : value) {
+
+                        Article article =
+                                document.toObject(Article.class);
+
+                        // Lấy ID của document Firebase
+                        article.setId(document.getId());
+
+                        articles.add(article);
+                    }
+
+                    adapter.update(articles);
+                    adapter.notifyDataSetChanged();
+                });
+    }
 }
